@@ -37,6 +37,126 @@
 	(fourcc_mod_get_vendor(modifier) == DRM_FORMAT_MOD_VENDOR_## vendor)
 #endif
 
+#define PIXEL_FORMAT_TABLE \
+	X(R, G, B, X, 10, 10, 10, 2) \
+	A(R, G, B, A, 10, 10, 10, 2) \
+	X(B, G, R, X, 10, 10, 10, 2) \
+	A(B, G, R, A, 10, 10, 10, 2) \
+	X(X, R, G, B, 2, 10, 10, 10) \
+	A(A, R, G, B, 2, 10, 10, 10) \
+	X(X, B, G, R, 2, 10, 10, 10) \
+	A(A, B, G, R, 2, 10, 10, 10) \
+	X(R, G, B, X, 8, 8, 8, 8) \
+	A(R, G, B, A, 8, 8, 8, 8) \
+	X(B, G, R, X, 8, 8, 8, 8) \
+	A(B, G, R, A, 8, 8, 8, 8) \
+	X(X, R, G, B, 8, 8, 8, 8) \
+	A(A, R, G, B, 8, 8, 8, 8) \
+	X(X, B, G, R, 8, 8, 8, 8) \
+	A(A, B, G, R, 8, 8, 8, 8) \
+	N(R, G, B, N, 8, 8, 8, 0) \
+	N(B, G, R, N, 8, 8, 8, 0) \
+	X(R, G, B, X, 4, 4, 4, 4) \
+	A(R, G, B, A, 4, 4, 4, 4) \
+	X(B, G, R, X, 4, 4, 4, 4) \
+	A(B, G, R, A, 4, 4, 4, 4) \
+	X(X, R, G, B, 4, 4, 4, 4) \
+	A(A, R, G, B, 4, 4, 4, 4) \
+	X(X, B, G, R, 4, 4, 4, 4) \
+	A(A, B, G, R, 4, 4, 4, 4) \
+	X(R, G, B, X, 5, 5, 5, 1) \
+	A(R, G, B, A, 5, 5, 5, 1) \
+	X(B, G, R, X, 5, 5, 5, 1) \
+	A(B, G, R, A, 5, 5, 5, 1) \
+	X(X, R, G, B, 1, 5, 5, 5) \
+	A(A, R, G, B, 1, 5, 5, 5) \
+	X(X, B, G, R, 1, 5, 5, 5) \
+	A(A, B, G, R, 1, 5, 5, 5) \
+	N(R, G, B, N, 5, 6, 5, 0) \
+	N(B, G, R, N, 5, 6, 5, 0) \
+	N(R, G, B, N, 3, 3, 2, 0) \
+	N(B, G, R, N, 2, 3, 3, 0) \
+
+#define FIRST_SHIFT_FROM_SIZES(a, b, c, d) ((b) + (c) + (d))
+#define SECOND_SHIFT_FROM_SIZES(a, b, c, d) ((c) + (d))
+#define THIRD_SHIFT_FROM_SIZES(a, b, c, d) (d)
+#define FOURTH_SHIFT_FROM_SIZES(a, b, c, d) 0
+
+#define BPP_FROM_SIZES(a, b, c, d) ((a) + (b) + (c) + (d))
+
+#define IS_R_R 1
+#define IS_R_G 0
+#define IS_R_B 0
+#define IS_R_A 0
+#define IS_R_X 0
+#define IS_R_N 0
+#define IS_R(c) IS_R_##c
+
+#define IS_G_R 0
+#define IS_G_G 1
+#define IS_G_B 0
+#define IS_G_A 0
+#define IS_G_X 0
+#define IS_G_N 0
+#define IS_G(c) IS_G_##c
+
+#define IS_B_R 0
+#define IS_B_G 0
+#define IS_B_B 1
+#define IS_B_A 0
+#define IS_B_X 0
+#define IS_B_N 0
+#define IS_B(c) IS_B_##c
+
+#define IS_A_R 0
+#define IS_A_G 0
+#define IS_A_B 0
+#define IS_A_A 1
+#define IS_A_X 0
+#define IS_A_N 0
+#define IS_A(c) IS_A_##c
+
+#define RED_SHIFT(c1, c2, c3, c4, a, b, c, d) \
+	(IS_R(c1) * FIRST_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_R(c2) * SECOND_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_R(c3) * THIRD_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_R(c4) * FOURTH_SHIFT_FROM_SIZES(a, b, c, d))
+
+#define GREEN_SHIFT(c1, c2, c3, c4, a, b, c, d) \
+	(IS_G(c1) * FIRST_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_G(c2) * SECOND_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_G(c3) * THIRD_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_G(c4) * FOURTH_SHIFT_FROM_SIZES(a, b, c, d))
+
+#define BLUE_SHIFT(c1, c2, c3, c4, a, b, c, d) \
+	(IS_B(c1) * FIRST_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_B(c2) * SECOND_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_B(c3) * THIRD_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_B(c4) * FOURTH_SHIFT_FROM_SIZES(a, b, c, d))
+
+#define ALPHA_SHIFT(c1, c2, c3, c4, a, b, c, d) \
+	(IS_A(c1) * FIRST_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_A(c2) * SECOND_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_A(c3) * THIRD_SHIFT_FROM_SIZES(a, b, c, d) \
+	+ IS_A(c4) * FOURTH_SHIFT_FROM_SIZES(a, b, c, d))
+
+#define RED_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	(IS_R(c1) * (a) + IS_R(c2) * (b) + IS_R(c3) * (c) + IS_R(c4) * (d))
+
+#define GREEN_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	(IS_G(c1) * (a) + IS_G(c2) * (b) + IS_G(c3) * (c) + IS_G(c4) * (d))
+
+#define BLUE_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	(IS_B(c1) * (a) + IS_B(c2) * (b) + IS_B(c3) * (c) + IS_B(c4) * (d))
+
+#define ALPHA_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	(IS_A(c1) * (a) + IS_A(c2) * (b) + IS_A(c3) * (c) + IS_A(c4) * (d))
+
+#define RGB_DEPTH(c1, c2, c3, c4, a, b, c, d) \
+	(RED_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	+ GREEN_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	+ BLUE_SIZE(c1, c2, c3, c4, a, b, c, d))
+
 static void pixel32_to_cpixel(uint8_t* restrict dst,
 		const struct rfb_pixel_format* dst_fmt,
 		const uint32_t* restrict src,
@@ -265,120 +385,38 @@ void pixel_to_cpixel(uint8_t* restrict dst,
 #undef CONVERT_PIXELS
 }
 
-/* clang-format off */
-int rfb_pixfmt_from_fourcc(struct rfb_pixel_format *dst, uint32_t src) {
+int rfb_pixfmt_from_fourcc(struct rfb_pixel_format *dst, uint32_t src)
+{
 	assert(!(src & DRM_FORMAT_BIG_ENDIAN));
 
+#define BODY(c1, c2, c3, c4, a, b, c, d) \
+	dst->red_shift = RED_SHIFT(c1, c2, c3, c4, a, b, c, d); \
+	dst->green_shift = GREEN_SHIFT(c1, c2, c3, c4, a, b, c, d); \
+	dst->blue_shift = BLUE_SHIFT(c1, c2, c3, c4, a, b, c, d); \
+	dst->bits_per_pixel = BPP_FROM_SIZES(a, b, c, d); \
+	dst->depth = RGB_DEPTH(c1, c2, c3, c4, a, b, c, d); \
+	dst->red_max = (1 << RED_SIZE(c1, c2, c3, c4, a, b, c, d)) - 1; \
+	dst->green_max = (1 << GREEN_SIZE(c1, c2, c3, c4, a, b, c, d)) - 1; \
+	dst->blue_max = (1 << BLUE_SIZE(c1, c2, c3, c4, a, b, c, d)) - 1; \
+	break;
+
 	switch (src) {
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_RGBX1010102:
-		dst->red_shift = 22;
-		dst->green_shift = 12;
-		dst->blue_shift = 2;
-		goto bpp_32_10bit;
-	case DRM_FORMAT_BGRA1010102:
-	case DRM_FORMAT_BGRX1010102:
-		dst->red_shift = 2;
-		dst->green_shift = 12;
-		dst->blue_shift = 22;
-		goto bpp_32_10bit;
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_XRGB2101010:
-		dst->red_shift = 20;
-		dst->green_shift = 10;
-		dst->blue_shift = 0;
-		goto bpp_32_10bit;
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_XBGR2101010:
-		dst->red_shift = 0;
-		dst->green_shift = 10;
-		dst->blue_shift = 20;
-bpp_32_10bit:
-		dst->bits_per_pixel = 32;
-		dst->depth = 30;
-		dst->red_max = 0x3ff;
-		dst->green_max = 0x3ff;
-		dst->blue_max = 0x3ff;
-		break;
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_RGBX8888:
-		dst->red_shift = 24;
-		dst->green_shift = 16;
-		dst->blue_shift = 8;
-		goto bpp_32;
-	case DRM_FORMAT_BGRA8888:
-	case DRM_FORMAT_BGRX8888:
-		dst->red_shift = 8;
-		dst->green_shift = 16;
-		dst->blue_shift = 24;
-		goto bpp_32;
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_XRGB8888:
-		dst->red_shift = 16;
-		dst->green_shift = 8;
-		dst->blue_shift = 0;
-		goto bpp_32;
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_XBGR8888:
-		dst->red_shift = 0;
-		dst->green_shift = 8;
-		dst->blue_shift = 16;
-bpp_32:
-		dst->bits_per_pixel = 32;
-		dst->depth = 24;
-		dst->red_max = 0xff;
-		dst->green_max = 0xff;
-		dst->blue_max = 0xff;
-		break;
-	case DRM_FORMAT_BGR888:
-		dst->red_shift = 0;
-		dst->green_shift = 8;
-		dst->blue_shift = 16;
-		goto bpp_24;
-	case DRM_FORMAT_RGB888:
-		dst->red_shift = 16;
-		dst->green_shift = 8;
-		dst->blue_shift = 0;
-bpp_24:
-		dst->bits_per_pixel = 24;
-		dst->depth = 24;
-		dst->red_max = 0xff;
-		dst->green_max = 0xff;
-		dst->blue_max = 0xff;
-		break;
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_RGBX4444:
-		dst->red_shift = 12;
-		dst->green_shift = 8;
-		dst->blue_shift = 4;
-		goto bpp_16;
-	case DRM_FORMAT_BGRA4444:
-	case DRM_FORMAT_BGRX4444:
-		dst->red_shift = 4;
-		dst->green_shift = 8;
-		dst->blue_shift = 12;
-		goto bpp_16;
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_XRGB4444:
-		dst->red_shift = 8;
-		dst->green_shift = 4;
-		dst->blue_shift = 0;
-		goto bpp_16;
-	case DRM_FORMAT_ABGR4444:
-	case DRM_FORMAT_XBGR4444:
-		dst->red_shift = 0;
-		dst->green_shift = 4;
-		dst->blue_shift = 8;
-bpp_16:
-		dst->bits_per_pixel = 16;
-		dst->depth = 12;
-		dst->red_max = 0x7f;
-		dst->green_max = 0x7f;
-		dst->blue_max = 0x7f;
-		break;
+#define X(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d: \
+		BODY(c1, c2, c3, c4, a, b, c, d)
+#define A X
+#define N(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##a##b##c: \
+		BODY(c1, c2, c3, c4, a, b, c, d)
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef A
+#undef X
 	default:
 		return -1;
 	}
+
+#undef BODY
 
 	dst->big_endian_flag = 0;
 	dst->true_colour_flag = 1;
@@ -390,35 +428,17 @@ int nvnc__pixel_size_from_fourcc(uint32_t fourcc)
 {
 	assert(!(fourcc & DRM_FORMAT_BIG_ENDIAN));
 	switch (fourcc) {
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_RGBX1010102:
-	case DRM_FORMAT_BGRA1010102:
-	case DRM_FORMAT_BGRX1010102:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_RGBX8888:
-	case DRM_FORMAT_BGRA8888:
-	case DRM_FORMAT_BGRX8888:
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_XBGR8888:
-		return 4;
-	case DRM_FORMAT_BGR888:
-	case DRM_FORMAT_RGB888:
-		return 3;
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_RGBX4444:
-	case DRM_FORMAT_BGRA4444:
-	case DRM_FORMAT_BGRX4444:
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_XRGB4444:
-	case DRM_FORMAT_ABGR4444:
-	case DRM_FORMAT_XBGR4444:
-		return 2;
+#define X(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d: \
+		return BPP_FROM_SIZES(a, b, c, d) / 8;
+#define A X
+#define N(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##a##b##c: \
+		return BPP_FROM_SIZES(a, b, c, d) / 8;
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef A
+#undef X
 	}
 
 	return 0;
@@ -510,11 +530,11 @@ static bool extract_alpha_mask_rgba32(uint8_t* dst, const uint32_t* src,
 }
 
 static bool extract_alpha_mask_rgba16(uint8_t* dst, const uint16_t* src,
-		size_t len, int alpha_shift)
+		size_t len, int alpha_shift, uint16_t alpha_max)
 {
 	for (size_t i = 0; i < len; i++) {
-		uint8_t alpha = (src[i] >> alpha_shift) & 0xf;
-		uint8_t binary = !!(alpha > 0xf / 2);
+		uint8_t alpha = (src[i] >> alpha_shift) & alpha_max;
+		uint8_t binary = !!(alpha > alpha_max / 2);
 		dst[i / 8] |= binary << (7 - (i % 8));
 	}
 
@@ -528,47 +548,42 @@ bool extract_alpha_mask(uint8_t* dst, const void* src, uint32_t format,
 	assert(!(format & DRM_FORMAT_BIG_ENDIAN));
 	memset(dst, 0, UDIV_UP(len, 8));
 
-	switch (format) {
+#define AMAX(c1, c2, c3, c4, a, b, c, d) \
+	((1 << ALPHA_SIZE(c1, c2, c3, c4, a, b, c, d)) - 1)
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-		return extract_alpha_mask_rgba32(dst, src, len, 0, 3);
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-		return extract_alpha_mask_rgba32(dst, src, len, 30, 3);
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_BGRA8888:
-		return extract_alpha_mask_rgba32(dst, src, len, 0, 0xff);
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-		return extract_alpha_mask_rgba32(dst, src, len, 24, 0xff);
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_BGRA4444:
-		return extract_alpha_mask_rgba16(dst, src, len, 0);
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_ABGR4444:
-		return extract_alpha_mask_rgba16(dst, src, len, 12);
+#define ASHIFT(c1, c2, c3, c4, a, b, c, d) \
+	ALPHA_SHIFT(c1, c2, c3, c4, a, b, c, d)
 #else
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-		return extract_alpha_mask_rgba32(dst, src, len, 30, 3);
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-		return extract_alpha_mask_rgba32(dst, src, len, 0, 3);
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_BGRA8888:
-		return extract_alpha_mask_rgba32(dst, src, len, 24, 0xff);
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-		return extract_alpha_mask_rgba32(dst, src, len, 0, 0xff);
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_BGRA4444:
-		return extract_alpha_mask_rgba16(dst, src, len, 12);
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_ABGR4444:
-		return extract_alpha_mask_rgba16(dst, src, len, 0);
+#define ASHIFT(c1, c2, c3, c4, a, b, c, d) \
+	(BPP_FROM_SIZES(a, b, c, d) \
+	- ALPHA_SIZE(c1, c2, c3, c4, a, b, c, d) \
+	- ALPHA_SHIFT(c1, c2, c3, c4, a, b, c, d))
 #endif
+
+	switch (format) {
+#define X(...)
+#define N(...)
+#define A(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d: \
+		if (BPP_FROM_SIZES(a, b, c, d) == 32) { \
+			return extract_alpha_mask_rgba32(dst, src, len, \
+					ASHIFT(c1, c2, c3, c4, a, b, c, d), \
+					AMAX(c1, c2, c3, c4, a, b, c, d)); \
+		} else if (BPP_FROM_SIZES(a, b, c, d) == 16) { \
+			return extract_alpha_mask_rgba16(dst, src, len, \
+					ASHIFT(c1, c2, c3, c4, a, b, c, d), \
+					AMAX(c1, c2, c3, c4, a, b, c, d)); \
+		} \
+		break;
+	PIXEL_FORMAT_TABLE
+#undef A
+#undef N
+#undef X
 	}
+
+#undef ASHIFT
+#undef AMAX
 
 	return false;
 }
@@ -576,66 +591,48 @@ bool extract_alpha_mask(uint8_t* dst, const void* src, uint32_t format,
 const char* drm_format_to_string(uint32_t fmt)
 {
 	switch (fmt) {
-#define X(x) case DRM_FORMAT_ ## x: return XSTR(x);
-	X(RGBA1010102) \
-	X(RGBX1010102) \
-	X(BGRA1010102) \
-	X(BGRX1010102) \
-	X(ARGB2101010) \
-	X(XRGB2101010) \
-	X(ABGR2101010) \
-	X(XBGR2101010) \
-	X(RGBA8888) \
-	X(RGBX8888) \
-	X(BGRA8888) \
-	X(BGRX8888) \
-	X(ARGB8888) \
-	X(XRGB8888) \
-	X(ABGR8888) \
-	X(XBGR8888) \
-	X(RGB888) \
-	X(BGR888) \
-	X(RGBA4444) \
-	X(RGBX4444) \
-	X(BGRA4444) \
-	X(BGRX4444) \
-	X(ARGB4444) \
-	X(XRGB4444) \
-	X(ABGR4444) \
-	X(XBGR4444) \
-	X(RGB565)
+#define X(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d: \
+		return XSTR(c1##c2##c3##c4##a##b##c##d);
+#define A X
+#define N(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##a##b##c: \
+		return XSTR(c1##c2##c3##a##b##c);
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef A
 #undef X
 	}
 	return "UNKNOWN";
 }
 
-// Not exact, but close enough for debugging
 const char* rfb_pixfmt_to_string(const struct rfb_pixel_format* fmt)
 {
-	uint32_t profile = (fmt->red_shift << 16) | (fmt->green_shift << 8)
-		| (fmt->blue_shift);
+	uint32_t profile = (fmt->bits_per_pixel << 24) | (fmt->red_shift << 16)
+		| (fmt->green_shift << 8) | (fmt->blue_shift);
+
+#define FMT_PROFILE(c1, c2, c3, c4, a, b, c, d) \
+	((BPP_FROM_SIZES(a, b, c, d) << 24) \
+	| (RED_SHIFT(c1, c2, c3, c4, a, b, c, d) << 16) \
+	| (GREEN_SHIFT(c1, c2, c3, c4, a, b, c, d) << 8) \
+	| BLUE_SHIFT(c1, c2, c3, c4, a, b, c, d))
 
 	switch (profile) {
-#define CASE(r, g, b) case ((r << 16) | (g << 8) | b)
-	CASE(22, 10, 2): return "RGBX1010102";
-	CASE(2, 12, 22): return "BGRX1010102";
-	CASE(20, 10, 0): return "XRGB2101010";
-	CASE(0, 10, 20): return "XBGR2101010";
-	CASE(24, 16, 8): return "RGBX8888";
-	CASE(8, 16, 24): return "BGRX8888";
-	CASE(16, 8, 0):  return "XRGB8888";
-	CASE(0, 8, 16):  return "XBGR8888";
-	CASE(12, 8, 4):  return "RGBX4444";
-	CASE(4, 8, 12):  return "BGRX4444";
-	CASE(8, 4, 0):   return "XRGB4444";
-	CASE(0, 4, 8):   return "XBGR4444";
-	CASE(11, 5, 0):  return "RGB565";
-	CASE(5, 2, 0):   return "RGB332";
-	CASE(0, 2, 5):   return "RGB332";
-	CASE(4, 2, 0):   return "RGB222";
-	CASE(0, 2, 4):   return "BGR222";
-#undef CASE
+#define A(...)
+#define X(c1, c2, c3, c4, a, b, c, d) \
+	case FMT_PROFILE(c1, c2, c3, c4, a, b, c, d): \
+		return XSTR(c1##c2##c3##c4##a##b##c##d);
+#define N(c1, c2, c3, c4, a, b, c, d) \
+	case FMT_PROFILE(c1, c2, c3, c4, a, b, c, d): \
+		return XSTR(c1##c2##c3##a##b##c);
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef X
+#undef A
 	}
+
+#undef FMT_PROFILE
+
 	return "UNKNOWN";
 }
 
@@ -655,10 +652,20 @@ void make_rgb332_pal8_map(struct rfb_set_colour_map_entries_msg* msg)
 
 static int get_format_depth(uint32_t format)
 {
-	struct rfb_pixel_format rfbfmt;
-	if (rfb_pixfmt_from_fourcc(&rfbfmt, format) < 0)
-		return 0;
-	return rfbfmt.depth;
+	switch (format) {
+#define X(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d: \
+		return RGB_DEPTH(c1, c2, c3, c4, a, b, c, d);
+#define A X
+#define N(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##a##b##c: \
+		return RGB_DEPTH(c1, c2, c3, c4, a, b, c, d);
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef A
+#undef X
+	}
+	return 0;
 }
 
 /*
@@ -696,19 +703,14 @@ static double rate_format_by_depth(uint32_t format, int target_depth)
 static bool format_has_alpha(uint32_t format)
 {
 	switch (format) {
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_BGRA8888:
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_BGRA4444:
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_ABGR4444:
-		return true;
+#define X(...)
+#define A(c1, c2, c3, c4, a, b, c, d) \
+	case DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d: return true;
+#define N(...)
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef A
+#undef X
 	}
 	return false;
 }
