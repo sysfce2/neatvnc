@@ -19,8 +19,12 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 #include <libdrm/drm_fourcc.h>
 #include <math.h>
+
+#define ALWAYS_INLINE inline __attribute__((always_inline))
+#define NEVER_INLINE __attribute__((__noinline__))
 
 #define POPCOUNT(x) __builtin_popcount(x)
 #define UDIV_UP(a, b) (((a) + (b) - 1) / (b))
@@ -157,6 +161,23 @@
 	+ GREEN_SIZE(c1, c2, c3, c4, a, b, c, d) \
 	+ BLUE_SIZE(c1, c2, c3, c4, a, b, c, d))
 
+struct nvnc_pixel_format_description {
+	uint32_t bytes_per_pixel;
+	uint32_t red_shift;
+	uint32_t green_shift;
+	uint32_t blue_shift;
+	uint32_t red_size;
+	uint32_t green_size;
+	uint32_t blue_size;
+	uint32_t red_max;
+	uint32_t green_max;
+	uint32_t blue_max;
+};
+
+struct nvnc_format_conversion_recipe {
+	struct nvnc_pixel_format_description src, dst;
+};
+
 const uint32_t nvnc_supported_pixel_formats[] = {
 #define X(c1, c2, c3, c4, a, b, c, d) DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d,
 #define A X
@@ -168,111 +189,135 @@ const uint32_t nvnc_supported_pixel_formats[] = {
 	DRM_FORMAT_INVALID
 };
 
-static void pixel32_to_cpixel(uint8_t* restrict dst,
-		const struct rfb_pixel_format* dst_fmt,
-		const uint32_t* restrict src,
-		const struct rfb_pixel_format* src_fmt,
-		size_t bytes_per_cpixel, size_t len)
+static ALWAYS_INLINE uint32_t convert_pixel(uint32_t px,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
 {
-	assert(src_fmt->true_colour_flag);
-	assert(src_fmt->depth <= 32);
-	assert(dst_fmt->true_colour_flag);
-	assert(dst_fmt->bits_per_pixel <= 32);
-	assert(dst_fmt->depth <= 32);
-	assert(bytes_per_cpixel <= 4 && bytes_per_cpixel >= 1);
+	const struct nvnc_pixel_format_description* restrict s = &recipe->src;
+	const struct nvnc_pixel_format_description* restrict d = &recipe->dst;
 
-	uint32_t src_red_shift = src_fmt->red_shift;
-	uint32_t src_green_shift = src_fmt->green_shift;
-	uint32_t src_blue_shift = src_fmt->blue_shift;
+	uint32_t r = ((px >> s->red_shift) & s->red_max)
+		<< d->red_size >> s->red_size << d->red_shift;
+	uint32_t g = ((px >> s->green_shift) & s->green_max)
+		<< d->green_size >> s->green_size << d->green_shift;
+	uint32_t b = ((px >> s->blue_shift) & s->blue_max)
+		<< d->blue_size >> s->blue_size << d->blue_shift;
+	return r | g | b;
+}
 
-	uint32_t dst_red_shift = dst_fmt->red_shift;
-	uint32_t dst_green_shift = dst_fmt->green_shift;
-	uint32_t dst_blue_shift = dst_fmt->blue_shift;
+static ALWAYS_INLINE void convert_pixels_dst4_src(uint32_t src_bpp,
+		uint8_t* restrict dst, const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len--) {
+		uint32_t px = 0;
+		memcpy(&px, src, src_bpp);
+		src += src_bpp;
 
-	uint32_t src_red_max = src_fmt->red_max;
-	uint32_t src_green_max = src_fmt->green_max;
-	uint32_t src_blue_max = src_fmt->blue_max;
+		uint32_t cpx = convert_pixel(px, recipe);
 
-	uint32_t src_red_bits = POPCOUNT(src_fmt->red_max);
-	uint32_t src_green_bits = POPCOUNT(src_fmt->green_max);
-	uint32_t src_blue_bits = POPCOUNT(src_fmt->blue_max);
-
-	uint32_t dst_red_bits = POPCOUNT(dst_fmt->red_max);
-	uint32_t dst_green_bits = POPCOUNT(dst_fmt->green_max);
-	uint32_t dst_blue_bits = POPCOUNT(dst_fmt->blue_max);
-
-#define CONVERT_PIXELS(cpx, px)                                                \
-	{                                                                      \
-		uint32_t r, g, b;                                              \
-		r = ((px >> src_red_shift) & src_red_max) << dst_red_bits      \
-		        >> src_red_bits << dst_red_shift;                      \
-		g = ((px >> src_green_shift) & src_green_max) << dst_green_bits\
-		        >> src_green_bits << dst_green_shift;                  \
-		b = ((px >> src_blue_shift) & src_blue_max) << dst_blue_bits   \
-		        >> src_blue_bits << dst_blue_shift;                    \
-		cpx = r | g | b;                                               \
+		*dst++ = (cpx >> 0) & 0xff;
+		*dst++ = (cpx >> 8) & 0xff;
+		*dst++ = (cpx >> 16) & 0xff;
+		*dst++ = (cpx >> 24) & 0xff;
 	}
+}
 
-	switch (bytes_per_cpixel) {
-	case 4:
-		while (len--) {
-			uint32_t cpx, px = *src++;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = (cpx >> 0) & 0xff;
-			*dst++ = (cpx >> 8) & 0xff;
-			*dst++ = (cpx >> 16) & 0xff;
-			*dst++ = (cpx >> 24) & 0xff;
-		}
-		break;
-	case 3:
-		if (dst_fmt->bits_per_pixel == 32 && dst_fmt->depth <= 24) {
-			uint32_t min_dst_shift = dst_red_shift;
-			if (min_dst_shift > dst_green_shift)
-				min_dst_shift = dst_green_shift;
-			if (min_dst_shift > dst_blue_shift)
-				min_dst_shift = dst_blue_shift;
-
-			dst_red_shift -= min_dst_shift;
-			dst_green_shift -= min_dst_shift;
-			dst_blue_shift -= min_dst_shift;
-		}
-
-		while (len--) {
-			uint32_t cpx, px = *src++;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = cpx & 0xff;
-			*dst++ = (cpx >> 8) & 0xff;
-			*dst++ = (cpx >> 16) & 0xff;
-		}
-		break;
-	case 2:
-		while (len--) {
-			uint32_t cpx, px = *src++;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = cpx & 0xff;
-			*dst++ = (cpx >> 8) & 0xff;
-		}
-		break;
-	case 1:
-		while (len--) {
-			uint32_t cpx, px = *src++;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = cpx & 0xff;
-		}
-		break;
-	default:
-		abort();
+static NEVER_INLINE void convert_pixels_dst4(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	switch (recipe->src.bytes_per_pixel) {
+	case 4: convert_pixels_dst4_src(4, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst4_src(3, dst, src, len, recipe); break;
+	case 2: convert_pixels_dst4_src(2, dst, src, len, recipe); break;
+	case 1: convert_pixels_dst4_src(1, dst, src, len, recipe); break;
+	default: abort();
 	}
+}
 
-#undef CONVERT_PIXELS
+static ALWAYS_INLINE void convert_pixels_dst3_src(uint32_t src_bpp,
+		uint8_t* restrict dst, const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len--) {
+		uint32_t px = 0;
+		memcpy(&px, src, 4);
+		src += src_bpp;
+
+		uint32_t cpx = convert_pixel(px, recipe);
+
+		*dst++ = cpx & 0xff;
+		*dst++ = (cpx >> 8) & 0xff;
+		*dst++ = (cpx >> 16) & 0xff;
+	}
+}
+
+static NEVER_INLINE void convert_pixels_dst3(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	switch (recipe->src.bytes_per_pixel) {
+	case 4: convert_pixels_dst3_src(4, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst3_src(3, dst, src, len, recipe); break;
+	case 2: convert_pixels_dst3_src(2, dst, src, len, recipe); break;
+	case 1: convert_pixels_dst3_src(1, dst, src, len, recipe); break;
+	default: abort();
+	}
+}
+
+static ALWAYS_INLINE void convert_pixels_dst2_src(uint32_t src_bpp,
+		uint8_t* restrict dst, const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len--) {
+		uint32_t px = 0;
+		memcpy(&px, src, src_bpp);
+		src += src_bpp;
+
+		uint32_t cpx = convert_pixel(px, recipe);
+
+		*dst++ = cpx & 0xff;
+		*dst++ = (cpx >> 8) & 0xff;
+	}
+}
+
+static NEVER_INLINE void convert_pixels_dst2(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	switch (recipe->src.bytes_per_pixel) {
+	case 4: convert_pixels_dst2_src(4, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst2_src(3, dst, src, len, recipe); break;
+	case 2: convert_pixels_dst2_src(2, dst, src, len, recipe); break;
+	case 1: convert_pixels_dst2_src(1, dst, src, len, recipe); break;
+	default: abort();
+	}
+}
+
+static ALWAYS_INLINE void convert_pixels_dst1_src(uint32_t src_bpp,
+		uint8_t* restrict dst, const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len--) {
+		uint32_t px = 0;
+		memcpy(&px, src, src_bpp);
+		src += src_bpp;
+
+		*dst++ = convert_pixel(px, recipe) & 0xff;
+	}
+}
+
+static NEVER_INLINE void convert_pixels_dst1(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	switch (recipe->src.bytes_per_pixel) {
+	case 4: convert_pixels_dst1_src(4, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst1_src(3, dst, src, len, recipe); break;
+	case 2: convert_pixels_dst1_src(2, dst, src, len, recipe); break;
+	case 1: convert_pixels_dst1_src(1, dst, src, len, recipe); break;
+	default: abort();
+	}
 }
 
 void pixel_to_cpixel(uint8_t* restrict dst,
@@ -281,11 +326,6 @@ void pixel_to_cpixel(uint8_t* restrict dst,
 		const struct rfb_pixel_format* src_fmt,
 		size_t bytes_per_cpixel, size_t len)
 {
-	if (src_fmt->bits_per_pixel == 32) {
-		pixel32_to_cpixel(dst, dst_fmt, (uint32_t*)src, src_fmt, bytes_per_cpixel, len);
-		return;
-	}
-
 	assert(src_fmt->true_colour_flag);
 	assert(src_fmt->depth <= 32);
 	assert(dst_fmt->true_colour_flag);
@@ -293,107 +333,55 @@ void pixel_to_cpixel(uint8_t* restrict dst,
 	assert(dst_fmt->depth <= 32);
 	assert(bytes_per_cpixel <= 4 && bytes_per_cpixel >= 1);
 
-	uint32_t src_bpp = src_fmt->bits_per_pixel / 8;
-	uint32_t src_red_shift = src_fmt->red_shift;
-	uint32_t src_green_shift = src_fmt->green_shift;
-	uint32_t src_blue_shift = src_fmt->blue_shift;
+	struct nvnc_format_conversion_recipe recipe;
+	recipe.src.bytes_per_pixel = src_fmt->bits_per_pixel / 8;
 
-	uint32_t dst_red_shift = dst_fmt->red_shift;
-	uint32_t dst_green_shift = dst_fmt->green_shift;
-	uint32_t dst_blue_shift = dst_fmt->blue_shift;
+	recipe.src.red_shift = src_fmt->red_shift;
+	recipe.src.green_shift = src_fmt->green_shift;
+	recipe.src.blue_shift = src_fmt->blue_shift;
 
-	uint32_t src_red_max = src_fmt->red_max;
-	uint32_t src_green_max = src_fmt->green_max;
-	uint32_t src_blue_max = src_fmt->blue_max;
+	recipe.src.red_max = src_fmt->red_max;
+	recipe.src.green_max = src_fmt->green_max;
+	recipe.src.blue_max = src_fmt->blue_max;
 
-	uint32_t src_red_bits = POPCOUNT(src_fmt->red_max);
-	uint32_t src_green_bits = POPCOUNT(src_fmt->green_max);
-	uint32_t src_blue_bits = POPCOUNT(src_fmt->blue_max);
+	recipe.src.red_size = POPCOUNT(src_fmt->red_max);
+	recipe.src.green_size = POPCOUNT(src_fmt->green_max);
+	recipe.src.blue_size = POPCOUNT(src_fmt->blue_max);
 
-	uint32_t dst_red_bits = POPCOUNT(dst_fmt->red_max);
-	uint32_t dst_green_bits = POPCOUNT(dst_fmt->green_max);
-	uint32_t dst_blue_bits = POPCOUNT(dst_fmt->blue_max);
+	recipe.dst.bytes_per_pixel = bytes_per_cpixel;
 
-#define CONVERT_PIXELS(cpx, px)                                                \
-	{                                                                      \
-		uint32_t r, g, b;                                              \
-		r = ((px >> src_red_shift) & src_red_max) << dst_red_bits      \
-		        >> src_red_bits << dst_red_shift;                      \
-		g = ((px >> src_green_shift) & src_green_max) << dst_green_bits\
-		        >> src_green_bits << dst_green_shift;                  \
-		b = ((px >> src_blue_shift) & src_blue_max) << dst_blue_bits   \
-		        >> src_blue_bits << dst_blue_shift;                    \
-		cpx = r | g | b;                                               \
+	recipe.dst.red_shift = dst_fmt->red_shift;
+	recipe.dst.green_shift = dst_fmt->green_shift;
+	recipe.dst.blue_shift = dst_fmt->blue_shift;
+
+	recipe.dst.red_max = dst_fmt->red_max;
+	recipe.dst.green_max = dst_fmt->green_max;
+	recipe.dst.blue_max = dst_fmt->blue_max;
+
+	recipe.dst.red_size = POPCOUNT(dst_fmt->red_max);
+	recipe.dst.green_size = POPCOUNT(dst_fmt->green_max);
+	recipe.dst.blue_size = POPCOUNT(dst_fmt->blue_max);
+
+	if (bytes_per_cpixel == 3 && dst_fmt->bits_per_pixel == 32 &&
+			dst_fmt->depth <= 24) {
+		uint32_t min_shift = recipe.dst.red_shift;
+		if (min_shift > recipe.dst.green_shift)
+			min_shift = recipe.dst.green_shift;
+		if (min_shift > recipe.dst.blue_shift)
+			min_shift = recipe.dst.blue_shift;
+
+		recipe.dst.red_shift -= min_shift;
+		recipe.dst.green_shift -= min_shift;
+		recipe.dst.blue_shift -= min_shift;
 	}
 
-	switch (bytes_per_cpixel) {
-	case 4:
-		while (len--) {
-			uint32_t cpx, px = 0;
-			memcpy(&px, src, src_bpp);
-			src += src_bpp;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = (cpx >> 0) & 0xff;
-			*dst++ = (cpx >> 8) & 0xff;
-			*dst++ = (cpx >> 16) & 0xff;
-			*dst++ = (cpx >> 24) & 0xff;
-		}
-		break;
-	case 3:
-		if (dst_fmt->bits_per_pixel == 32 && dst_fmt->depth <= 24) {
-			uint32_t min_dst_shift = dst_red_shift;
-			if (min_dst_shift > dst_green_shift)
-				min_dst_shift = dst_green_shift;
-			if (min_dst_shift > dst_blue_shift)
-				min_dst_shift = dst_blue_shift;
-
-			dst_red_shift -= min_dst_shift;
-			dst_green_shift -= min_dst_shift;
-			dst_blue_shift -= min_dst_shift;
-		}
-
-		while (len--) {
-			uint32_t cpx, px = 0;
-			memcpy(&px, src, src_bpp);
-			src += src_bpp;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = cpx & 0xff;
-			*dst++ = (cpx >> 8) & 0xff;
-			*dst++ = (cpx >> 16) & 0xff;
-		}
-		break;
-	case 2:
-		while (len--) {
-			uint32_t cpx, px = 0;
-			memcpy(&px, src, src_bpp);
-			src += src_bpp;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = cpx & 0xff;
-			*dst++ = (cpx >> 8) & 0xff;
-		}
-		break;
-	case 1:
-		while (len--) {
-			uint32_t cpx, px = 0;
-			memcpy(&px, src, src_bpp);
-			src += src_bpp;
-
-			CONVERT_PIXELS(cpx, px)
-
-			*dst++ = cpx & 0xff;
-		}
-		break;
-	default:
-		abort();
+	switch (recipe.dst.bytes_per_pixel) {
+	case 4: convert_pixels_dst4(dst, src, len, &recipe); break;
+	case 3: convert_pixels_dst3(dst, src, len, &recipe); break;
+	case 2: convert_pixels_dst2(dst, src, len, &recipe); break;
+	case 1: convert_pixels_dst1(dst, src, len, &recipe); break;
+	default: abort();
 	}
-
-#undef CONVERT_PIXELS
 }
 
 int rfb_pixfmt_from_fourcc(struct rfb_pixel_format *dst, uint32_t src)
