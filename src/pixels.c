@@ -157,6 +157,17 @@
 	+ GREEN_SIZE(c1, c2, c3, c4, a, b, c, d) \
 	+ BLUE_SIZE(c1, c2, c3, c4, a, b, c, d))
 
+const uint32_t nvnc_supported_pixel_formats[] = {
+#define X(c1, c2, c3, c4, a, b, c, d) DRM_FORMAT_##c1##c2##c3##c4##a##b##c##d,
+#define A X
+#define N(c1, c2, c3, c4, a, b, c, d) DRM_FORMAT_##c1##c2##c3##a##b##c,
+	PIXEL_FORMAT_TABLE
+#undef N
+#undef A
+#undef X
+	DRM_FORMAT_INVALID
+};
+
 static void pixel32_to_cpixel(uint8_t* restrict dst,
 		const struct rfb_pixel_format* dst_fmt,
 		const uint32_t* restrict src,

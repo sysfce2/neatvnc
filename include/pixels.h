@@ -29,6 +29,8 @@ enum format_rating_flags {
 	FORMAT_RATING_PREFER_LINEAR = 1 << 1,
 };
 
+extern const uint32_t nvnc_supported_pixel_formats[];
+
 void pixel_to_cpixel(uint8_t* restrict dst,
 		const struct rfb_pixel_format* dst_fmt,
 		const uint8_t* restrict src,
