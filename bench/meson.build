@@ -22,3 +22,8 @@ executable('parallel-deflate', 'parallel-deflate-bench.c',
         include_directories: inc,
 	dependencies: dependencies,
 )
+
+executable('pixel-conversion-bench', 'pixel-conversion-bench.c',
+	include_directories: inc,
+	dependencies: dependencies,
+)
