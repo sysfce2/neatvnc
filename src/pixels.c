@@ -222,13 +222,41 @@ static ALWAYS_INLINE void convert_pixels_dst4_src(uint32_t src_bpp,
 	}
 }
 
+static ALWAYS_INLINE void convert_pixels_dst4_src3(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len-- > 1) {
+		uint32_t px = 0;
+		memcpy(&px, src, 4);
+		src += 3;
+
+		uint32_t cpx = convert_pixel(px, recipe);
+
+		*dst++ = (cpx >> 0) & 0xff;
+		*dst++ = (cpx >> 8) & 0xff;
+		*dst++ = (cpx >> 16) & 0xff;
+		*dst++ = (cpx >> 24) & 0xff;
+	}
+
+	uint32_t px = 0;
+	memcpy(&px, src, 3);
+
+	uint32_t cpx = convert_pixel(px, recipe);
+
+	*dst++ = (cpx >> 0) & 0xff;
+	*dst++ = (cpx >> 8) & 0xff;
+	*dst++ = (cpx >> 16) & 0xff;
+	*dst++ = (cpx >> 24) & 0xff;
+}
+
 static NEVER_INLINE void convert_pixels_dst4(uint8_t* restrict dst,
 		const uint8_t* restrict src, size_t len,
 		const struct nvnc_format_conversion_recipe* restrict recipe)
 {
 	switch (recipe->src.bytes_per_pixel) {
 	case 4: convert_pixels_dst4_src(4, dst, src, len, recipe); break;
-	case 3: convert_pixels_dst4_src(3, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst4_src3(dst, src, len, recipe); break;
 	case 2: convert_pixels_dst4_src(2, dst, src, len, recipe); break;
 	case 1: convert_pixels_dst4_src(1, dst, src, len, recipe); break;
 	default: abort();
@@ -241,7 +269,7 @@ static ALWAYS_INLINE void convert_pixels_dst3_src(uint32_t src_bpp,
 {
 	while (len--) {
 		uint32_t px = 0;
-		memcpy(&px, src, 4);
+		memcpy(&px, src, src_bpp);
 		src += src_bpp;
 
 		uint32_t cpx = convert_pixel(px, recipe);
@@ -252,13 +280,39 @@ static ALWAYS_INLINE void convert_pixels_dst3_src(uint32_t src_bpp,
 	}
 }
 
+static ALWAYS_INLINE void convert_pixels_dst3_src3(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len-- > 1) {
+		uint32_t px = 0;
+		memcpy(&px, src, 4);
+		src += 3;
+
+		uint32_t cpx = convert_pixel(px, recipe);
+
+		*dst++ = (cpx >> 0) & 0xff;
+		*dst++ = (cpx >> 8) & 0xff;
+		*dst++ = (cpx >> 16) & 0xff;
+	}
+
+	uint32_t px = 0;
+	memcpy(&px, src, 3);
+
+	uint32_t cpx = convert_pixel(px, recipe);
+
+	*dst++ = (cpx >> 0) & 0xff;
+	*dst++ = (cpx >> 8) & 0xff;
+	*dst++ = (cpx >> 16) & 0xff;
+}
+
 static NEVER_INLINE void convert_pixels_dst3(uint8_t* restrict dst,
 		const uint8_t* restrict src, size_t len,
 		const struct nvnc_format_conversion_recipe* restrict recipe)
 {
 	switch (recipe->src.bytes_per_pixel) {
 	case 4: convert_pixels_dst3_src(4, dst, src, len, recipe); break;
-	case 3: convert_pixels_dst3_src(3, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst3_src3(dst, src, len, recipe); break;
 	case 2: convert_pixels_dst3_src(2, dst, src, len, recipe); break;
 	case 1: convert_pixels_dst3_src(1, dst, src, len, recipe); break;
 	default: abort();
@@ -281,13 +335,37 @@ static ALWAYS_INLINE void convert_pixels_dst2_src(uint32_t src_bpp,
 	}
 }
 
+static ALWAYS_INLINE void convert_pixels_dst2_src3(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len-- > 1) {
+		uint32_t px = 0;
+		memcpy(&px, src, 4);
+		src += 3;
+
+		uint32_t cpx = convert_pixel(px, recipe);
+
+		*dst++ = (cpx >> 0) & 0xff;
+		*dst++ = (cpx >> 8) & 0xff;
+	}
+
+	uint32_t px = 0;
+	memcpy(&px, src, 3);
+
+	uint32_t cpx = convert_pixel(px, recipe);
+
+	*dst++ = (cpx >> 0) & 0xff;
+	*dst++ = (cpx >> 8) & 0xff;
+}
+
 static NEVER_INLINE void convert_pixels_dst2(uint8_t* restrict dst,
 		const uint8_t* restrict src, size_t len,
 		const struct nvnc_format_conversion_recipe* restrict recipe)
 {
 	switch (recipe->src.bytes_per_pixel) {
 	case 4: convert_pixels_dst2_src(4, dst, src, len, recipe); break;
-	case 3: convert_pixels_dst2_src(3, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst2_src3(dst, src, len, recipe); break;
 	case 2: convert_pixels_dst2_src(2, dst, src, len, recipe); break;
 	case 1: convert_pixels_dst2_src(1, dst, src, len, recipe); break;
 	default: abort();
@@ -307,13 +385,31 @@ static ALWAYS_INLINE void convert_pixels_dst1_src(uint32_t src_bpp,
 	}
 }
 
+static ALWAYS_INLINE void convert_pixels_dst1_src3(uint8_t* restrict dst,
+		const uint8_t* restrict src, size_t len,
+		const struct nvnc_format_conversion_recipe* restrict recipe)
+{
+	while (len-- > 1) {
+		uint32_t px = 0;
+		memcpy(&px, src, 4);
+		src += 3;
+
+		*dst++ = convert_pixel(px, recipe) & 0xff;
+	}
+
+	uint32_t px = 0;
+	memcpy(&px, src, 3);
+
+	*dst++ = convert_pixel(px, recipe) & 0xff;
+}
+
 static NEVER_INLINE void convert_pixels_dst1(uint8_t* restrict dst,
 		const uint8_t* restrict src, size_t len,
 		const struct nvnc_format_conversion_recipe* restrict recipe)
 {
 	switch (recipe->src.bytes_per_pixel) {
 	case 4: convert_pixels_dst1_src(4, dst, src, len, recipe); break;
-	case 3: convert_pixels_dst1_src(3, dst, src, len, recipe); break;
+	case 3: convert_pixels_dst1_src3(dst, src, len, recipe); break;
 	case 2: convert_pixels_dst1_src(2, dst, src, len, recipe); break;
 	case 1: convert_pixels_dst1_src(1, dst, src, len, recipe); break;
 	default: abort();
